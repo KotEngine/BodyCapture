@@ -1,0 +1,9 @@
+name: BodyCapture
+authors: [vk.com/ddosass, t.me/THEYCALLMEDDOSASS]
+main: BodyCapture\Loader
+version: 0.1
+api: 5.0.0
+
+permissions:
+  "cmd.bodycapture":
+    default: op
