@@ -7,7 +7,6 @@ use pocketmine\player\Player;
 
 class bodyCaptureCommand extends Command
 {
-
     private Loader $plugin;
 
     public function __construct(Loader $loader)
@@ -24,56 +23,74 @@ class bodyCaptureCommand extends Command
 
     public function execute(CommandSender $sender, string $commandLabel, array $args): void
     {
-        if ($sender->hasPermission("cmd." . $this->getName())) {
-            if (count($args) > 0 and $args[0] == "exit") {
-                if ($sender instanceof Player) {
-                    if ($this->plugin->getManager()->isBodyViewer($sender)) {
-                        $govern = false;
-                        $this->plugin->getManager()->isBodyViewer($sender, $govern);
-                        if ($govern) {
-                            $player = $this->plugin->getManager()->getObservable($sender);
-                            $player->sendMessage("{$sender->getName()} покинул твоё тело!");
-                        }
-                        $this->plugin->getManager()->deleteBodyViewer($sender);
-                        $sender->sendMessage("Ты покинул тело игрока!");
-                    } else {
-                        $sender->sendMessage("Вы ни в кого не вселялись!");
-                    }
-                } else {
-                    $sender->sendMessage("Доступно только в игре!");
-                }
-            } else {
-                if ($sender instanceof Player) {
-                    if (count($args) >= 1) {
-                        $name = $args[0];
-                        if (($player = $this->plugin->getServer()->getPlayerByPrefix($name)) !== null) {
-                            if ($player !== $sender) {
-                                if (!$this->plugin->getManager()->isBodyObservable($player, $govern) || !$govern) {
-                                    if (!$this->plugin->getManager()->isBodyViewer($player, $gvrn)) {
-                                        $this->plugin->getManager()->addBodyViewer($sender, $player, true);
-                                        $sender->sendMessage("Ты вселился в $name!");
-                                        $player->sendMessage("В тебя вселился {$sender->getName()}!");
-                                    } else {
-                                        $sender->sendMessage("На данный момент ты не можешь вселиться в $name!");
-                                    }
-                                } else {
-                                    $sender->sendMessage("Игроком $name уже управляют!");
-                                }
-                            } else {
-                                $sender->sendMessage("Ты не можешь вселиться сам в себя!");
-                            }
-                        } else {
-                            $sender->sendMessage("Игрока $name нет в сети, либо ты неправильно ввёл ник!");
-                        }
-                    } else {
-                        $sender->sendMessage($this->getUsage());
-                    }
-                } else {
-                    $sender->sendMessage("Доступно только в игре!");
-                }
-            }
-        }else{
+        if (!$sender->hasPermission("cmd." . $this->getName())) {
             $sender->sendMessage($this->getPermissionMessage());
+            return;
         }
+
+        if (!($sender instanceof Player)) {
+            $sender->sendMessage("Доступно только в игре!");
+            return;
+        }
+
+        $mode = (count($args) > 0 && $args[0] === "exit") ? "exit" : "enter";
+
+        switch ($mode) {
+            case "exit":
+                $this->handleExit($sender);
+                break;
+            case "enter":
+                $this->handleEnter($sender, $args);
+                break;
+        }
+    }
+
+    private function handleExit(Player $sender): void
+    {
+        if (!$this->plugin->getManager()->isBodyViewer($sender)) {
+            $sender->sendMessage("Вы ни в кого не вселялись!");
+            return;
+        }
+
+        $govern = false;
+        $this->plugin->getManager()->isBodyViewer($sender, $govern);
+
+        if ($govern) {
+            $observable = $this->plugin->getManager()->getObservable($sender);
+            $observable->sendMessage("{$sender->getName()} покинул твоё тело!");
+        }
+
+        $this->plugin->getManager()->deleteBodyViewer($sender);
+        $sender->sendMessage("Ты покинул тело игрока!");
+    }
+
+    private function handleEnter(Player $sender, array $args): void
+    {
+        if (count($args) < 1) {
+            $sender->sendMessage($this->getUsage());
+            return;
+        }
+
+        $name = $args[0];
+        $target = $this->plugin->getServer()->getPlayerByPrefix($name);
+
+        if ($target === null) {
+            $sender->sendMessage("Игрока $name нет в сети, либо ты неправильно ввёл ник!");
+            return;
+        }
+
+        if ($target === $sender) {
+            $sender->sendMessage("Ты не можешь вселиться сам в себя!");
+            return;
+        }
+
+        if (!$this->plugin->getManager()->canStartCapture($sender, $target)) {
+            $sender->sendMessage("Игроком $name уже управляют, либо это недоступно сейчас!");
+            return;
+        }
+
+        $this->plugin->getManager()->addBodyViewer($sender, $target, true);
+        $sender->sendMessage("Ты вселился в $name!");
+        $target->sendMessage("В тебя вселился {$sender->getName()}!");
     }
 }

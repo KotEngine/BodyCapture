@@ -20,44 +20,50 @@ class Listener implements \pocketmine\event\Listener
     public function PlayerQuitEvent(PlayerQuitEvent $e): void
     {
         $player = $e->getPlayer();
-        foreach($this->plugin->getManager()->players_array as $pair){
+        foreach ($this->plugin->getManager()->getPairs() as $pair) {
             $viewer = $pair[0];
             $observable = $pair[1];
             $govern = $pair[2];
-            if($player === $observable){
+
+            if ($player === $observable) {
                 $this->plugin->getManager()->deleteBodyViewer($viewer);
                 $viewer->sendMessage("Ты покинул тело игрока!");
-                break;
+                continue;
             }
-            if($player === $viewer){
+
+            if ($player === $viewer) {
                 $this->plugin->getManager()->deleteBodyViewer($viewer);
-                if($govern){
+                if ($govern) {
                     $observable->sendMessage("{$viewer->getName()} покинул твоё тело!");
                 }
-                break;
             }
         }
     }
+
     public function EntityDamageEvent(EntityDamageEvent $e): void
     {
         $player = $e->getEntity();
-        if($player instanceof Player){
-            if($e instanceof EntityDamageByEntityEvent){
-                $damager = $e->getDamager();
-                if($damager instanceof Player){
-                    if($this->plugin->getManager()->isBodyObservable($player,$gov)){
-                        if($this->plugin->getManager()->isBodyViewer($damager,$gov)){
-                            $e->cancel();
-                        }
-                    }
-                }
+        if (!($player instanceof Player)) {
+            return;
+        }
 
-            }
-            $gov = false;
-            if($this->plugin->getManager()->isBodyViewer($player,$gov)){
-                if(!$gov){
+        $victimGovern = false;
+        $isVictimObservable = $this->plugin->getManager()->isBodyObservable($player, $victimGovern);
+
+        if ($e instanceof EntityDamageByEntityEvent) {
+            $damager = $e->getDamager();
+            if ($damager instanceof Player && $isVictimObservable) {
+                $damagerGovern = false;
+                if ($this->plugin->getManager()->isBodyViewer($damager, $damagerGovern)) {
                     $e->cancel();
                 }
+            }
+        }
+
+        $victimViewerGovern = false;
+        if ($this->plugin->getManager()->isBodyViewer($player, $victimViewerGovern)) {
+            if (!$victimViewerGovern) {
+                $e->cancel();
             }
         }
     }
